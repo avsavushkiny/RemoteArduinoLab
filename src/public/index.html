@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Remote Arduino Lab</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <div class="eyebrow">Удалённая учебная лаборатория</div>
+  <h1>Remote Arduino Lab</h1>
+  <p>Камера лаборатории и очередь прошивки Arduino</p>
+  <div id="serverStatus" class="status" role="status">Проверяем сервер…</div>
+</header>
+<main>
+  <section id="loginPanel" class="panel narrow">
+    <h2>Вход в лабораторию</h2>
+    <p>Введите выданные преподавателем имя пользователя и пароль.</p>
+    <form id="loginForm">
+      <label for="username">Имя пользователя</label>
+      <input id="username" name="username" autocomplete="username" minlength="3" maxlength="32" required>
+      <label for="password">Пароль</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button type="submit">Войти</button>
+    </form>
+    <div id="loginResult" class="result" role="status" aria-live="polite"></div>
+  </section>
+  <div id="labContent" hidden>
+    <section class="panel account-bar">
+      <span>Вы вошли как <strong id="whoami"></strong> <span id="roleBadge" class="badge"></span></span>
+      <button id="logoutButton" class="secondary" type="button">Выйти</button>
+    </section>
+    <section class="panel">
+      <div class="section-heading">
+        <div><h2>Камера лаборатории</h2><p>Трансляция с USB-камеры в реальном времени</p></div>
+        <a class="button secondary" href="/camera" target="_blank" rel="noopener">Открыть поток отдельно</a>
+      </div>
+      <div class="camera-frame">
+        <img id="camera" src="/camera" alt="Видеопоток с камеры лаборатории">
+        <div id="cameraError" class="camera-error" hidden>Поток не отображается. Проверьте камеру и консоль сервера.</div>
+      </div>
+      <p class="hint">Если изображения нет, проверьте камеру и обновите страницу.</p>
+    </section>
+    <section class="panel">
+      <h2>Поставить прошивку в очередь</h2>
+      <p>Выберите COM-порт и файл Intel HEX (<code>.hex</code>). Сервер выполняет задания по одному.</p>
+      <form id="uploadForm">
+        <label for="serialPort">COM-порт Arduino на компьютере лаборатории</label>
+        <div class="port-row">
+          <select id="serialPort" name="port" required><option value="">Загрузка списка портов…</option></select>
+          <button id="refreshPorts" class="secondary" type="button">Обновить порты</button>
+        </div>
+        <p id="portStatus" class="hint" role="status" aria-live="polite">Поиск подключённых устройств…</p>
+        <label for="firmware">Файл прошивки (.hex)</label>
+        <input id="firmware" name="firmware" type="file" accept=".hex,text/plain" required>
+        <button id="submitJob" type="submit">Добавить в очередь</button>
+      </form>
+      <div id="uploadResult" class="result" role="status" aria-live="polite"></div>
+      <p class="warning">Прошивка заменяет текущий скетч. Не отключайте плату во время записи. Проверяйте, что выбрана именно ваша плата.</p>
+    </section>
+    <section class="panel">
+      <h2>Последовательный порт (Serial Monitor)</h2>
+      <p>Подключайтесь к COM-порту Arduino, просматривайте входящие сообщения и отправляйте команды. Пока порт открыт, очередь прошивок ожидает его закрытия.</p>
+      <div class="serial-grid">
+        <div>
+          <label for="serialConsolePort">COM-порт</label>
+          <select id="serialConsolePort"><option value="">Выберите порт…</option></select>
+        </div>
+        <div>
+          <label for="serialBaudRate">Скорость (бод)</label>
+          <select id="serialBaudRate">
+            <option>9600</option><option>19200</option><option>38400</option><option>57600</option><option selected>115200</option><option>230400</option>
+          </select>
+        </div>
+      </div>
+      <div class="button-row">
+        <button id="serialOpen" type="button">Открыть порт</button>
+        <button id="serialClose" class="secondary" type="button" disabled>Закрыть порт</button>
+        <button id="serialClear" class="secondary" type="button">Очистить вывод</button>
+      </div>
+      <p id="serialStatus" class="hint" role="status" aria-live="polite">Последовательный порт закрыт.</p>
+      <label for="serialOutput">Входящие данные</label>
+      <pre id="serialOutput" class="serial-output" aria-live="polite"></pre>
+      <form id="serialWriteForm">
+        <label for="serialInput">Отправить данные</label>
+        <textarea id="serialInput" rows="3" maxlength="2048" placeholder="Введите команду для Arduino…" required></textarea>
+        <div class="button-row">
+          <label class="checkbox-label"><input id="serialAppendNewline" type="checkbox" checked> Добавлять перевод строки (CR+LF)</label>
+          <button id="serialSend" type="submit" disabled>Отправить</button>
+        </div>
+      </form>
+      <p class="hint">Скорость и формат должны совпадать с настройками <code>Serial.begin(...)</code> в скетче. Если скетч использует Serial Monitor, закройте другие программы, занимающие этот COM-порт.</p>
+      <p class="warning">Порт может быть открыт только одним пользователем одновременно. Закройте его после работы, чтобы освободить Arduino для прошивки и других студентов.</p>
+    </section>
+    <section class="panel">
+      <div class="section-heading"><div><h2>Очередь и мои задания</h2><p>Статус обновляется автоматически.</p></div><button id="refreshJobs" class="secondary" type="button">Обновить</button></div>
+      <div id="queueSummary" class="hint" role="status"></div>
+      <div id="jobsList" class="jobs-list"><p>Загрузка заданий…</p></div>
+    </section>
+  </div>
+</main>
+<footer>Учебная лаборатория. Используйте только в доверенной сети Radmin VPN.</footer>
+<script src="/app.js"></script>
+</body>
+</html>
